@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -52,6 +54,12 @@ import mpzcmpwallet.composeapp.generated.resources.ok
 import mpzcmpwallet.composeapp.generated.resources.present
 import org.jetbrains.compose.resources.stringResource
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.jsonPrimitive
+import org.multipaz.claim.Claim
+import org.multipaz.claim.MdocClaim
+import org.multipaz.claim.JsonClaim
+import org.multipaz.compose.decodeImage
+import org.multipaz.util.fromBase64Url
 import org.multipaz.compose.document.DocumentInfo
 import org.multipaz.compose.document.DocumentModel
 import org.multipaz.compose.permissions.rememberBluetoothEnabledState
@@ -164,7 +172,7 @@ fun DocumentViewerScreen(
             ) {
                 Spacer(modifier = Modifier.height(12.dp))
 
-                DocumentCard(info)
+                DocumentCard(info, documentTypeRepository= documentTypeRepository)
 
                 Spacer(modifier = Modifier.height(12.dp))
 
@@ -214,21 +222,64 @@ fun DocumentViewerScreen(
 
 @Composable
 fun DocumentCard(
-    documentInfo: DocumentInfo
+    documentInfo: DocumentInfo,
+    documentTypeRepository: DocumentTypeRepository
 ) {
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
-            .aspectRatio(1.6f)
-            .clip(RoundedCornerShape(16.dp))
     ) {
-        Image(
-            bitmap = documentInfo.cardArt,
-            contentDescription = null,
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop
-        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(1.6f)
+                .clip(RoundedCornerShape(16.dp))
+        ) {
+            Image(
+                bitmap = documentInfo.cardArt,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        val claims = documentInfo.credentialInfos
+            .filter { it.credential.isCertified }
+            .flatMap { it.credential.getClaims(documentTypeRepository) }
+
+        LazyColumn(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(claims) { claim ->
+                if (claim.attribute?.identifier == "portrait") {
+                    PortraitClaimRow(claim)
+                } else {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = claim.displayName,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Text(
+                            text = claim.render(),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -264,6 +315,47 @@ private fun DocumentInfo.canPresentWithProximity(): Boolean {
     }
     return false
 }
+@Composable
+fun PortraitClaimRow(claim: Claim) {
+    val portraitBitmap = remember(claim) {
+        try {
+            val bytes = when (claim) {
+                is MdocClaim -> claim.value.asBstr
+                is JsonClaim -> claim.value.jsonPrimitive.content.fromBase64Url()
+            }
+            decodeImage(bytes)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = claim.displayName,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.width(16.dp))
+        portraitBitmap?.let { bitmap ->
+            Image(
+                bitmap = bitmap,
+                contentDescription = "Portrait",
+                modifier = Modifier
+                    .size(80.dp)
+                    .clip(RoundedCornerShape(8.dp)),
+                contentScale = ContentScale.Crop
+            )
+        }
+    }
+}
+
 
 
 

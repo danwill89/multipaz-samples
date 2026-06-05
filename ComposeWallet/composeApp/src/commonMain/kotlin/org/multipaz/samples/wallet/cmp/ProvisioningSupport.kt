@@ -22,8 +22,8 @@ import kotlin.time.ExperimentalTime
 class ProvisioningSupport() {
     companion object {
         const val TAG = "ProvisioningSupport"
-        const val APP_LINK_SERVER = "https://apps.multipaz.org"
-        val APP_LINK_BASE_URL = "$APP_LINK_SERVER${AppPlatform.redirectPath}"
+        const val APP_LINK_SERVER = "https://id.gethinjames.com"
+        const val APP_LINK_BASE_URL = "$APP_LINK_SERVER/redirect/org.multipaz.samples.wallet.cmp"
     }
 
     private val lock = Mutex()

@@ -52,6 +52,17 @@ fun UtopiaSampleApp(
         }
 
         // TODO: implement DC registration refreshing
+        LaunchedEffect(Unit) {
+            registrationManager.refresh("app start")
+        }
+
+        LaunchedEffect(provisioningModel) {
+            provisioningModel.state.collect { state ->
+                if (state is ProvisioningModel.CredentialsIssued) {
+                    registrationManager.refresh("credentials issued")
+                }
+            }
+        }
 
         // Use the working pattern from identity-credential project
         LaunchedEffect(true) {
